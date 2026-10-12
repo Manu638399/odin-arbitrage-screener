@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+*.log
+edge_profile/
+*.png
+!static/img/odin_logo.png
+.env
+.venv
+env/
+venv/

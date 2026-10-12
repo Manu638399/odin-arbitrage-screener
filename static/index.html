@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ArbitrageLab — Arbitrage Screener</title>
+  <link rel="icon" type="image/png" href="img/odin_logo.png">
+  <link rel="stylesheet" href="css/style.css?v=6">
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-icon">
+          <img src="img/odin_logo.png" alt="Odin Crest Emblem">
+        </div>
+        <div class="brand-title">ArbitrageLab</div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-item active" id="nav-screener" onclick="showView('screener')">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
+            <polyline points="16 7 22 7 22 13"></polyline>
+          </svg>
+          Arbitrage Screener
+        </div>
+        <div class="nav-item" id="nav-pair-analysis" onclick="showView('pair-analysis')">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+          </svg>
+          Pair Analysis
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div>App provided by ODIN RESEARCH</div>
+        <div><a href="https://odinresearch.com" target="_blank">odinresearch.com</a></div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      
+      <!-- ====================================================================
+           VIEW 1: ARBITRAGE SCREENER (Image 1)
+           ==================================================================== -->
+      <section id="view-screener" class="view-section active">
+        <div class="page-header-row">
+          <h1 class="page-title">Arbitrage Screener</h1>
+          <button class="btn-refresh" onclick="fetchScreenerData()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 4v6h-6"></path>
+              <path d="M1 20v-6h6"></path>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            Refresh
+          </button>
+        </div>
+        
+        <p class="page-description">
+          Arbitrage opportunities across HyperLiquid and MT5. Spreads are absolute price differences (HyperLiquid - MT5); funding is annualized. Click a header to sort; use the filter row to filter (e.g. &gt; 0.1 on a funding column). Click a row's Details to open its Pair Analysis page (historical prices and spread).
+        </p>
+
+        <!-- Category Tabs -->
+        <div class="category-tabs" id="category-tabs-container">
+          <button class="cat-tab active" onclick="setCategory('All')">All</button>
+          <button class="cat-tab" onclick="setCategory('Favorites')">★ Favorites</button>
+          <button class="cat-tab" onclick="setCategory('Indices')">Indices</button>
+          <button class="cat-tab" onclick="setCategory('FX')">FX</button>
+          <button class="cat-tab" onclick="setCategory('Metals')">Metals</button>
+          <button class="cat-tab" onclick="setCategory('Commodities')">Commodities</button>
+          <button class="cat-tab" onclick="setCategory('ETFs')">ETFs</button>
+          <button class="cat-tab" onclick="setCategory('Equities')">Equities</button>
+        </div>
+
+        <!-- Screener Table with exact Aa badge filter inputs -->
+        <div class="table-container">
+          <table class="data-table" id="screener-table">
+            <thead>
+              <tr>
+                <th style="width: 36px;">★</th>
+                <th onclick="sortTable('symbol')">⇅ Symbol</th>
+                <th onclick="sortTable('current_spread')">⇅ Current Spread</th>
+                <th onclick="sortTable('current_spread_pct')">⇅ Current Spread (%)</th>
+                <th onclick="sortTable('oracle_spread')">⇅ Oracle Spread</th>
+                <th onclick="sortTable('ann_funding_long')">⇅ Ann. Funding (Long / Short)</th>
+                <th onclick="sortTable('funding_arbitrage')">⇅ Funding Arbitrage</th>
+                <th onclick="sortTable('volume_24h_usd')">⇅ 24h Volume</th>
+                <th onclick="sortTable('open_interest_usd')">⇅ Open Interest</th>
+                <th style="text-align: right;">⇅ Details</th>
+              </tr>
+              <tr class="filter-row">
+                <th></th>
+                <th>
+                  <div class="filter-box-wrap">
+                    <span class="filter-badge-icon">Aa</span>
+                    <input type="text" class="table-filter-input" placeholder="filter data..." oninput="applyFilters('symbol', this.value)">
+                  </div>
+                </th>
+                <th>
+                  <div class="filter-box-wrap">
+                    <span class="filter-badge-icon">Aa</span>
+                    <input type="text" class="table-filter-input" placeholder="filter data..." oninput="applyFilters('current_spread', this.value)">
+                  </div>
+                </th>
+                <th>
+                  <div class="filter-box-wrap">
+                    <span class="filter-badge-icon">Aa</span>
+                    <input type="text" class="table-filter-input" placeholder="filter data..." oninput="applyFilters('current_spread_pct', this.value)">
+                  </div>
+                </th>
+                <th>
+                  <div class="filter-box-wrap">
+                    <span class="filter-badge-icon">Aa</span>
+                    <input type="text" class="table-filter-input" placeholder="filter data..." oninput="applyFilters('oracle_spread', this.value)">
+                  </div>
+                </th>
+                <th>
+                  <div class="filter-box-wrap">
+                    <span class="filter-badge-icon">Aa</span>
+                    <input type="text" class="table-filter-input" placeholder="filter data..." oninput="applyFilters('ann_funding', this.value)">
+                  </div>
+                </th>
+                <th>
+                  <div class="filter-box-wrap">
+                    <span class="filter-badge-icon">Aa</span>
+                    <input type="text" class="table-filter-input" placeholder="filter data..." oninput="applyFilters('funding_arbitrage', this.value)">
+                  </div>
+                </th>
+                <th>
+                  <div class="filter-box-wrap">
+                    <span class="filter-badge-icon">Aa</span>
+                    <input type="text" class="table-filter-input" placeholder="filter data..." oninput="applyFilters('volume_24h_usd', this.value)">
+                  </div>
+                </th>
+                <th>
+                  <div class="filter-box-wrap">
+                    <span class="filter-badge-icon">Aa</span>
+                    <input type="text" class="table-filter-input" placeholder="filter data..." oninput="applyFilters('open_interest_usd', this.value)">
+                  </div>
+                </th>
+                <th>
+                  <div class="filter-box-wrap" style="visibility: hidden;">
+                    <input type="text" class="table-filter-input">
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="screener-tbody">
+              <!-- Dynamically populated rows -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           VIEW 2: PAIR ANALYSIS & BACKTESTER (Images 2, 3, 4, 5)
+           ==================================================================== -->
+      <section id="view-pair-analysis" class="view-section">
+        <div class="page-header-row">
+          <h1 class="page-title" id="pair-analysis-header">Pair Analysis</h1>
+          <button class="btn-back" onclick="showView('screener')">
+            ← Back to Screener
+          </button>
+        </div>
+
+        <p class="page-description">
+          Historical close prices, mark spread (HyperLiquid - MT5), and oracle basis (HyperLiquid oracle - MT5) for a pair. Open a pair from the Arbitrage Screener, or pick one below. Adjust the timeframe and lookback, then Reload.
+        </p>
+
+        <!-- Controls Bar with searchable select dropdown matching Image 2 -->
+        <div class="controls-bar">
+          <div class="control-group">
+            <label class="control-label">Symbol Pair</label>
+            <div class="searchable-select-wrap">
+              <div class="searchable-select-box" id="pair-select-display" onclick="togglePairDropdown()">
+                <span id="pair-selected-label">Select a symbol pair...</span>
+                <span style="font-size: 10px; color: var(--text-muted);">▼</span>
+              </div>
+              <div class="searchable-dropdown-menu" id="pair-dropdown-menu">
+                <input type="text" class="dropdown-search-input" id="pair-search-input" placeholder="Search..." oninput="filterPairDropdown(this.value)">
+                <div id="pair-options-container">
+                  <!-- Populated dynamically -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <label class="control-label">Timeframe</label>
+            <select class="control-select" id="timeframe-select">
+              <option value="1m" selected>1 minute</option>
+              <option value="5m">5 minutes</option>
+              <option value="15m">15 minutes</option>
+              <option value="1h">1 hour</option>
+              <option value="4h">4 hours</option>
+              <option value="1d">1 day</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label class="control-label">Lookback</label>
+            <select class="control-select" id="lookback-select">
+              <option value="24">1 day</option>
+              <option value="48" selected>2 working days</option>
+              <option value="72">3 days</option>
+              <option value="120">5 days</option>
+              <option value="168">7 days</option>
+              <option value="336">14 days</option>
+              <option value="720">30 days</option>
+            </select>
+          </div>
+
+          <button class="btn-reload" id="btn-reload-pair" onclick="loadSelectedPair()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M23 4v6h-6"></path>
+              <path d="M1 20v-6h6"></path>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            Reload
+          </button>
+        </div>
+
+        <!-- Empty State Placeholders (shown when no pair is loaded, Image 2) -->
+        <div id="pair-empty-state" style="display: none;">
+          <div class="chart-card">
+            <div class="chart-placeholder">Select a symbol pair to analyze.</div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-placeholder">Select a symbol pair to analyze.</div>
+          </div>
+        </div>
+
+        <!-- Loaded Pair Content (Images 3, 4 & 5) -->
+        <div id="pair-loaded-content">
+          <!-- Horizontal KPI Strip matching Image 3 -->
+          <div class="kpi-ribbon" id="pair-kpi-ribbon">
+            <div class="kpi-item">
+              <div class="kpi-title">Current Spread</div>
+              <div class="kpi-value" id="kpi-spread">--</div>
+            </div>
+            <div class="kpi-item">
+              <div class="kpi-title">Current Spread (%)</div>
+              <div class="kpi-value" id="kpi-spread-pct">--</div>
+            </div>
+            <div class="kpi-item">
+              <div class="kpi-title">Oracle Spread</div>
+              <div class="kpi-value" id="kpi-oracle-spread">--</div>
+            </div>
+            <div class="kpi-item">
+              <div class="kpi-title">Ann. Funding (Long / Short)</div>
+              <div class="kpi-value" id="kpi-funding-ls">--</div>
+            </div>
+            <div class="kpi-item">
+              <div class="kpi-title">Funding Arbitrage</div>
+              <div class="kpi-value" id="kpi-funding-arb">--</div>
+            </div>
+            <div class="kpi-item">
+              <div class="kpi-title">24h Volume</div>
+              <div class="kpi-value" id="kpi-volume">--</div>
+            </div>
+            <div class="kpi-item">
+              <div class="kpi-title">Open Interest</div>
+              <div class="kpi-value" id="kpi-oi">--</div>
+            </div>
+          </div>
+
+          <!-- Chart 1: Raw Close Prices -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <div class="chart-title" id="chart-1-title">xyz:JP225 vs JP225 — close price</div>
+            </div>
+            <div class="chart-container" id="chart-close-prices"></div>
+          </div>
+
+          <!-- Chart 2: Spread Series & Exact Stats Row Below Chart (Image 3) -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <div class="chart-title" id="chart-2-title">Spread: xyz:JP225 - JP225</div>
+            </div>
+            <div class="chart-container" id="chart-spread"></div>
+            
+            <!-- Exact Statistical Table Row Below Chart 2 -->
+            <div class="stats-table-row">
+              <div class="stats-col">
+                <div class="stats-col-title">Std Dev (s)</div>
+                <div class="stats-col-val" id="stat-std">--</div>
+              </div>
+              <div class="stats-col">
+                <div class="stats-col-title">Mean (u)</div>
+                <div class="stats-col-val" id="stat-mean">--</div>
+              </div>
+              <div class="stats-col">
+                <div class="stats-col-title">u - 1s</div>
+                <div class="stats-col-val" id="stat-u-1s">--</div>
+              </div>
+              <div class="stats-col">
+                <div class="stats-col-title">u + 1s</div>
+                <div class="stats-col-val" id="stat-u-1s-plus">--</div>
+              </div>
+              <div class="stats-col">
+                <div class="stats-col-title">u + 2s</div>
+                <div class="stats-col-val" id="stat-u-2s-plus">--</div>
+              </div>
+              <div class="stats-col">
+                <div class="stats-col-title">u - 2s</div>
+                <div class="stats-col-val" id="stat-u-2s-minus">--</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chart 3: Oracle Basis -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <div class="chart-title" id="chart-3-title">Oracle basis: xyz:JP225 oracle - JP225 (1-min, recent window)</div>
+            </div>
+            <div class="chart-container" id="chart-oracle-basis"></div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 6px;" id="aligned-bars-info">
+              1,421 aligned bars (UTC)
+            </div>
+          </div>
+
+          <!-- ====================================================================
+               MODULE 3: BACKTESTER (Image 5)
+               ==================================================================== -->
+          <div class="backtester-card">
+            <h2 class="section-title">Backtester</h2>
+            <p class="page-description">
+              Backtest static spread levels on the loaded series. Buy side: goes long the spread (open &lt; Buy Entry; close &gt; Buy Exit); Sell side: goes short (open &gt; Sell Entry; close &lt; Sell Exit). Leave a side blank to disable it. Cost is charged per side (entry and exit). PnL is in spread price units.
+            </p>
+
+            <!-- Cost Estimator Tool matching Image 5 -->
+            <div class="cost-estimator-box">
+              <div style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">Estimate cost / side</div>
+              <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 10px;">
+                Approximate the per-side cost from venue fees and the MT5 spread, then apply it to Cost / side. The HyperLiquid fee is % of notional (converted via the reference price, auto-filled from the loaded pair); the MT5 fee is direct cost in price units; the MT5 spread is auto-filled from the live MT5 order book — bid and charged as a half-spread per side. All in spread price units.
+              </p>
+              <div class="cost-estimator-grid">
+                <div class="control-group">
+                  <label class="control-label">HL fee %</label>
+                  <input type="number" step="0.001" class="control-input" id="cost-hl-fee" value="0.010" style="width: 85px;">
+                </div>
+                <div class="control-group">
+                  <label class="control-label">MT5 avg spread</label>
+                  <input type="number" step="0.01" class="control-input" id="cost-mt5-spread" value="4" style="width: 95px;">
+                </div>
+                <div class="control-group">
+                  <label class="control-label">MT5 fee $</label>
+                  <input type="number" step="0.01" class="control-input" id="cost-mt5-fee" value="0.00" style="width: 75px;">
+                </div>
+                <div class="control-group">
+                  <label class="control-label">Reference price</label>
+                  <input type="number" step="0.1" class="control-input" id="cost-ref-price" value="48207" style="width: 105px;">
+                </div>
+                <button class="btn-apply-cost" onclick="applyCostEstimation()">
+                  Apply to Cost / side
+                </button>
+              </div>
+              <div class="cost-result-text" id="cost-formula-display">
+                Estimated cost / side = -- = HL fee -- + MT5 spread -- + MT5 fee --
+              </div>
+            </div>
+
+            <!-- Strategy Inputs matching Image 5 -->
+            <div class="strategy-inputs-row">
+              <div class="control-group">
+                <label class="control-label">Buy Entry</label>
+                <input type="number" step="0.01" class="control-input" id="bt-buy-entry" placeholder="0" style="width: 85px;">
+              </div>
+              <div class="control-group">
+                <label class="control-label">Buy Exit</label>
+                <input type="number" step="0.01" class="control-input" id="bt-buy-exit" placeholder="20" style="width: 85px;">
+              </div>
+              <div class="control-group">
+                <label class="control-label">Sell Entry</label>
+                <input type="number" step="0.01" class="control-input" id="bt-sell-entry" placeholder="50" style="width: 85px;">
+              </div>
+              <div class="control-group">
+                <label class="control-label">Sell Exit</label>
+                <input type="number" step="0.01" class="control-input" id="bt-sell-exit" placeholder="30" style="width: 85px;">
+              </div>
+              <div class="control-group">
+                <label class="control-label">Cost / side</label>
+                <input type="number" step="0.001" class="control-input" id="bt-cost-side" placeholder="e.g. 0.05" style="width: 95px;">
+              </div>
+              <button class="btn-run-backtest" onclick="runBacktest()">
+                ▶ Run Backtest
+              </button>
+              <div id="bt-status-badge"></div>
+            </div>
+
+            <!-- Backtest KPI Row matching Image 5 -->
+            <div class="backtest-kpi-row" id="bt-kpi-row">
+              <div class="kpi-item">
+                <div class="kpi-title">Trades</div>
+                <div class="kpi-value" id="bt-kpi-trades">--</div>
+              </div>
+              <div class="kpi-item">
+                <div class="kpi-title">Win Rate</div>
+                <div class="kpi-value" id="bt-kpi-winrate">--</div>
+                <div class="kpi-sub" id="bt-kpi-winrate-sub"></div>
+              </div>
+              <div class="kpi-item">
+                <div class="kpi-title">Return on Spread</div>
+                <div class="kpi-value" id="bt-kpi-gross">--</div>
+              </div>
+              <div class="kpi-item">
+                <div class="kpi-title">Commission</div>
+                <div class="kpi-value" id="bt-kpi-comm">--</div>
+              </div>
+              <div class="kpi-item">
+                <div class="kpi-title">Avg / Trade</div>
+                <div class="kpi-value" id="bt-kpi-avg">--</div>
+              </div>
+              <div class="kpi-item">
+                <div class="kpi-title">Max Drawdown</div>
+                <div class="kpi-value" id="bt-kpi-dd">--</div>
+              </div>
+            </div>
+
+            <!-- Backtest Charts -->
+            <div class="chart-card">
+              <div class="chart-header">
+                <div class="chart-title">Equity curve — cumulative net PnL (spread units)</div>
+              </div>
+              <div class="chart-container" id="chart-equity-curve"></div>
+            </div>
+
+            <div class="chart-card">
+              <div class="chart-header">
+                <div class="chart-title">Spread with levels & trades</div>
+              </div>
+              <div class="chart-container" id="chart-spread-trades"></div>
+            </div>
+
+            <!-- Trade Audit Log Table matching Image 5 -->
+            <div style="margin-top: 16px;">
+              <div class="table-container">
+                <table class="data-table" id="bt-trades-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 40px;">#</th>
+                      <th>Side</th>
+                      <th>Entry Time (UTC)</th>
+                      <th>Exit Time (UTC)</th>
+                      <th>Entry</th>
+                      <th>Exit</th>
+                      <th>Gross</th>
+                      <th>Commission</th>
+                      <th>Net</th>
+                    </tr>
+                  </thead>
+                  <tbody id="bt-trades-tbody">
+                    <!-- Trades rendered dynamically -->
+                  </tbody>
+                </table>
+              </div>
+              <div class="pagination-controls">
+                <button class="btn-page" onclick="changeTradePage(-1)">&lt;</button>
+                <span id="bt-page-info">1 / 1</span>
+                <button class="btn-page" onclick="changeTradePage(1)">&gt;</button>
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">
+                * Still open at the end of the window — marked to the last bar.
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+    </main>
+  </div>
+
+  <script src="js/charts.js?v=5"></script>
+  <script src="js/app.js?v=5"></script>
+</body>
+</html>

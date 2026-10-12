@@ -1,0 +1,19 @@
+name: arbitrage-screener
+region: nyc
+services:
+- name: web
+  environment_slug: python
+  build_command: pip install -r requirements.txt
+  run_command: uvicorn server:app --host 0.0.0.0 --port 8080
+  http_port: 8080
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  routes:
+  - path: /
+  health_check:
+    http_path: /api/health
+    initial_delay_seconds: 15
+    period_seconds: 20
+    timeout_seconds: 5
+    success_threshold: 1
+    failure_threshold: 3
