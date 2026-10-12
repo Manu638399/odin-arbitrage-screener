@@ -49,9 +49,14 @@ class MT5Feed:
         if self._is_initialized:
             return True
 
+        if mt5 is None:
+            logger.info("MetaTrader5 library not available (running in Linux/Cloud container). Remote feed sync active.")
+            self._is_initialized = False
+            return False
+
         ok = mt5.initialize(self.terminal_path) if self.terminal_path else mt5.initialize()
         if not ok:
-            logger.error(f"MT5 initialize failed: {mt5.last_error()}")
+            logger.error(f"MT5 initialize failed: {mt5.last_error() if mt5 else 'mt5 is None'}")
             self._is_initialized = False
             return False
 
@@ -61,14 +66,20 @@ class MT5Feed:
 
     def shutdown(self):
         """Disconnects from MT5 terminal."""
-        if self._is_initialized:
+        if mt5 is not None and self._is_initialized:
             mt5.shutdown()
             self._is_initialized = False
 
     def get_available_symbols(self, refresh: bool = False) -> Set[str]:
         """Returns the set of all symbols provided by the broker."""
+        if mt5 is None:
+            return set()
+
         if not self._is_initialized:
             self.initialize()
+
+        if not self._is_initialized:
+            return set()
 
         if self._available_symbols_cache is None or refresh:
             symbols = mt5.symbols_get()
@@ -86,8 +97,9 @@ class MT5Feed:
         if self._broker_offset_seconds is not None:
             return self._broker_offset_seconds
 
-        if not self._is_initialized:
-            self.initialize()
+        if mt5 is None or not self._is_initialized:
+            self._broker_offset_seconds = 3 * 3600
+            return self._broker_offset_seconds
 
         # Try to sample from a highly liquid pair (EURUSD or similar)
         for probe in ["EURUSD", "GBPUSD", "USDJPY", "US500", "JP225"]:
@@ -109,8 +121,8 @@ class MT5Feed:
 
     def ensure_symbol_selected(self, symbol: str) -> bool:
         """Selects symbol in Market Watch if not already active."""
-        if not self._is_initialized:
-            self.initialize()
+        if mt5 is None or not self._is_initialized:
+            return False
         info = mt5.symbol_info(symbol)
         if info is None or not info.visible:
             return mt5.symbol_select(symbol, True)
@@ -121,8 +133,8 @@ class MT5Feed:
         Fetches current tick (bid, ask, mid, spread) for symbol.
         Falls back to latest M1 candle close if ticks are unavailable (e.g. market closed).
         """
-        if not self._is_initialized:
-            self.initialize()
+        if mt5 is None or not self._is_initialized:
+            return None
 
         self.ensure_symbol_selected(symbol)
         tick = mt5.symbol_info_tick(symbol)
@@ -174,11 +186,11 @@ class MT5Feed:
         Fetches historical bars and shifts them to UTC.
         Returns a DataFrame indexed by UTC timestamp with OHLCV data.
         """
-        if not self._is_initialized:
-            self.initialize()
+        if mt5 is None or not self._is_initialized:
+            return pd.DataFrame(columns=["open", "high", "low", "close", "volume"])
 
         self.ensure_symbol_selected(symbol)
-        tf = MT5_TIMEFRAME_MAP.get(timeframe, mt5.TIMEFRAME_M1)
+        tf = MT5_TIMEFRAME_MAP.get(timeframe, 1)
 
         offset_s = self.get_broker_utc_offset_seconds()
         now_utc = datetime.now(timezone.utc)
