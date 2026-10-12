@@ -8,6 +8,9 @@ import logging
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Optional, Set
 import pandas as pd
+
+logger = logging.getLogger(__name__)
+
 try:
     import MetaTrader5 as mt5
     MT5_TIMEFRAME_MAP = {
