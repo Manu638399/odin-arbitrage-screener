@@ -65,6 +65,47 @@ class TestArbitragePipeline(unittest.TestCase):
         self.assertIsNotNone(jp_ctx["mid_px"])
         self.assertIsNotNone(jp_ctx["oracle_px"])
 
+    def test_autonomous_cloud_fallback(self):
+        import pipeline.mt5_feed as mf
+        from pipeline.screener_engine import ScreenerEngine
+
+        orig_mt5 = mf.mt5
+        try:
+            mf.mt5 = None  # Mock cloud environment where MT5 is unavailable
+            engine = ScreenerEngine()
+            engine.initialize()
+
+            # Test screener table in cloud mode
+            rows = engine.get_screener_table()
+            self.assertGreater(len(rows), 0)
+            row_0 = rows[0]
+            self.assertIsNotNone(row_0["current_spread"])
+            self.assertIn(row_0["feed_source"], ["Oracle", "MT5", "DEX"])
+
+            # Test pair analysis in cloud mode
+            analysis = engine.get_pair_analysis("JP225", "1m", 24)
+            df = analysis["aligned_df"]
+            self.assertFalse(df.empty)
+            self.assertGreater(len(df), 100)
+            self.assertEqual(analysis["data_source"], "AUTONOMOUS_ORACLE")
+            self.assertGreater(analysis["stats"]["count"], 100)
+            self.assertIsNotNone(analysis["metrics"]["current_spread"])
+        finally:
+            mf.mt5 = orig_mt5
+
+    def test_remote_candles_sync(self):
+        from pipeline.screener_engine import ScreenerEngine
+        engine = ScreenerEngine()
+        engine.initialize()
+
+        sample_candles = [
+            {"time": "2026-10-13 00:00:00+00:00", "open": 67000.0, "high": 67050.0, "low": 66980.0, "close": 67010.0, "volume": 10.0},
+            {"time": "2026-10-13 00:01:00+00:00", "open": 67010.0, "high": 67060.0, "low": 66990.0, "close": 67020.0, "volume": 12.0}
+        ]
+        count = engine.update_remote_candles("JP225", sample_candles)
+        self.assertEqual(count, 2)
+        self.assertIn("JP225", engine._remote_candles)
+
 
 if __name__ == "__main__":
     unittest.main()

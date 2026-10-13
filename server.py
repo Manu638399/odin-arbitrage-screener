@@ -53,6 +53,7 @@ def health_check():
         "status": "healthy",
         "mt5_connected": engine.mt5_feed._is_initialized,
         "remote_ticks_count": len(engine._remote_ticks),
+        "remote_candles_count": len(engine._remote_candles),
         "server_time_utc": datetime.now(timezone.utc).isoformat()
     }
 
@@ -65,6 +66,17 @@ class SyncFeedRequest(BaseModel):
 def sync_feed(req: SyncFeedRequest):
     engine.update_remote_ticks(req.ticks)
     return {"success": True, "count": len(req.ticks)}
+
+
+class SyncCandlesRequest(BaseModel):
+    symbol: str
+    candles: List[Dict[str, Any]]
+
+
+@app.post("/api/sync-candles")
+def sync_candles(req: SyncCandlesRequest):
+    count = engine.update_remote_candles(req.symbol, req.candles)
+    return {"success": True, "symbol": req.symbol, "count": count}
 
 
 @app.get("/api/categories")
@@ -127,6 +139,7 @@ def get_pair_analysis_data(
         return {
             "success": True,
             "pair": analysis["pair"],
+            "data_source": analysis.get("data_source", "MT5_LIVE"),
             "metrics": analysis["metrics"],
             "stats": analysis["stats"],
             "chart_data": {

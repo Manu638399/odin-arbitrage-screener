@@ -318,8 +318,13 @@ async function loadSelectedPair() {
     const s = json.stats;
     const c = json.chart_data;
 
-    // Header title matching Image 3: "JP225 — xyz:JP225 vs JP225"
-    document.getElementById("pair-analysis-header").innerText = `${p.symbol} — ${p.hl_symbol} vs ${p.mt5_symbol}`;
+    // Header title with feed status badge
+    const badgeHtml = json.data_source === "AUTONOMOUS_ORACLE" 
+      ? ` <span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background: rgba(56, 189, 248, 0.12); color: #38bdf8; font-weight: 500; margin-left: 8px;">● Oracle Benchmark</span>`
+      : (json.data_source === "MT5_REMOTE"
+        ? ` <span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background: rgba(34, 197, 94, 0.12); color: #22c55e; font-weight: 500; margin-left: 8px;">● MT5 Synced</span>`
+        : ` <span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background: rgba(34, 197, 94, 0.12); color: #22c55e; font-weight: 500; margin-left: 8px;">● MT5 Live</span>`);
+    document.getElementById("pair-analysis-header").innerHTML = `${p.symbol} — ${p.hl_symbol} vs ${p.mt5_symbol}${badgeHtml}`;
 
     // KPI ribbon (horizontal strip)
     const spdStr = m.current_spread !== null ? `${m.current_spread > 0 ? "+" : ""}${m.current_spread.toFixed(2)}` : "--";
@@ -350,14 +355,16 @@ async function loadSelectedPair() {
     document.getElementById("kpi-oi").innerText = formatCurrency(m.open_interest_usd);
 
     // Chart titles matching Image 3
-    document.getElementById("chart-1-title").innerText = `${p.hl_symbol} vs ${p.mt5_symbol} — close price`;
-    document.getElementById("chart-2-title").innerText = `Spread: ${p.hl_symbol} — ${p.mt5_symbol}`;
-    document.getElementById("chart-3-title").innerText = `Oracle basis: ${p.hl_symbol} oracle — ${p.mt5_symbol} (${tf}, recent window)`;
+    const refLabel = json.data_source === "AUTONOMOUS_ORACLE" ? `${p.mt5_symbol} (Benchmark)` : p.mt5_symbol;
+    document.getElementById("chart-1-title").innerText = `${p.hl_symbol} vs ${refLabel} — close price`;
+    document.getElementById("chart-2-title").innerText = `Spread: ${p.hl_symbol} — ${refLabel}`;
+    document.getElementById("chart-3-title").innerText = `Oracle basis: ${p.hl_symbol} oracle basis (${tf}, recent window)`;
 
     // Aligned bars footer text: "5,423 aligned 1m bars | 2024-10-07 13:17 -> 2024-10-12 10:24 UTC"
     const startTimeStr = c.times[0] ? c.times[0].replace("T", " ").slice(0, 16) : "";
     const endTimeStr = c.times[c.count - 1] ? c.times[c.count - 1].replace("T", " ").slice(0, 16) : "";
-    document.getElementById("aligned-bars-info").innerText = `${c.count.toLocaleString()} aligned ${tf} bars | ${startTimeStr} -> ${endTimeStr} UTC`;
+    const sourceTag = json.data_source === "AUTONOMOUS_ORACLE" ? " (Oracle Benchmark)" : (json.data_source === "MT5_REMOTE" ? " (MT5 Synced)" : "");
+    document.getElementById("aligned-bars-info").innerText = `${c.count.toLocaleString()} aligned ${tf} bars | ${startTimeStr} -> ${endTimeStr} UTC${sourceTag}`;
 
     // Render 3 Charts (using high-performance Plotly)
     renderClosePricesChart("chart-close-prices", c.times, c.hl_close, c.mt5_close, p.hl_symbol, p.mt5_symbol);
