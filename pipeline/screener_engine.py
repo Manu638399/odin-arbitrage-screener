@@ -32,7 +32,7 @@ class ScreenerEngine:
         self._initialized = False
         self._resolved_universe: List[Dict[str, Any]] = []
         self._pair_analysis_cache: Dict[str, Dict[str, Any]] = {}
-        self._cache_ttl_sec = 30.0
+        self._cache_ttl_sec = 60.0
         self._remote_ticks: Dict[str, Dict[str, Any]] = {}
         self._remote_candles: Dict[str, pd.DataFrame] = {}
 

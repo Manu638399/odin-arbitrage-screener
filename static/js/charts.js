@@ -45,12 +45,36 @@ const PLOTLY_FAST_CONFIG = {
 };
 
 /**
+ * High-speed decimation for silky smooth 60fps graph rendering
+ */
+function downsampleForDisplay(times, yValues, maxPoints = 1200) {
+  if (!times || times.length <= maxPoints) {
+    return { times, yValues };
+  }
+  const step = Math.ceil(times.length / maxPoints);
+  const dsTimes = [];
+  const dsY = [];
+  for (let i = 0; i < times.length; i += step) {
+    dsTimes.push(times[i]);
+    dsY.push(yValues[i]);
+  }
+  if (times.length > 0 && dsTimes[dsTimes.length - 1] !== times[times.length - 1]) {
+    dsTimes.push(times[times.length - 1]);
+    dsY.push(yValues[yValues.length - 1]);
+  }
+  return { times: dsTimes, yValues: dsY };
+}
+
+/**
  * Chart 1: Raw Close Prices (HL vs MT5)
  */
 function renderClosePricesChart(containerId, times, hlClose, mt5Close, hlLabel, mt5Label) {
+  const dsHL = downsampleForDisplay(times, hlClose, 1200);
+  const dsMT5 = downsampleForDisplay(times, mt5Close, 1200);
+
   const traceHL = {
-    x: times,
-    y: hlClose,
+    x: dsHL.times,
+    y: dsHL.yValues,
     name: hlLabel || "HyperLiquid",
     type: "scatter",
     mode: "lines",
@@ -59,8 +83,8 @@ function renderClosePricesChart(containerId, times, hlClose, mt5Close, hlLabel, 
   };
 
   const traceMT5 = {
-    x: times,
-    y: mt5Close,
+    x: dsMT5.times,
+    y: dsMT5.yValues,
     name: mt5Label || "MT5",
     type: "scatter",
     mode: "lines",
@@ -90,10 +114,11 @@ function renderClosePricesChart(containerId, times, hlClose, mt5Close, hlLabel, 
  * Chart 2: Spread Series & Statistical Bounds
  */
 function renderSpreadChart(containerId, times, spread, stats) {
+  const ds = downsampleForDisplay(times, spread, 1200);
   const traces = [
     {
-      x: times,
-      y: spread,
+      x: ds.times,
+      y: ds.yValues,
       name: "HL — MT5",
       type: "scatter",
       mode: "lines",
@@ -178,9 +203,10 @@ function renderSpreadChart(containerId, times, spread, stats) {
  * Chart 3: Oracle Basis
  */
 function renderOracleBasisChart(containerId, times, oracleBasis) {
+  const ds = downsampleForDisplay(times, oracleBasis, 1200);
   const trace = {
-    x: times,
-    y: oracleBasis,
+    x: ds.times,
+    y: ds.yValues,
     name: "HL oracle — MT5",
     type: "scatter",
     mode: "lines",
@@ -212,12 +238,13 @@ function renderOracleBasisChart(containerId, times, oracleBasis) {
 function renderEquityCurveChart(containerId, equityPoints) {
   if (!equityPoints || equityPoints.length === 0) return;
 
-  const times = equityPoints.map(p => p.time);
-  const pnl = equityPoints.map(p => p.cum_pnl);
+  const rawTimes = equityPoints.map(p => p.time);
+  const rawPnl = equityPoints.map(p => p.cum_pnl);
+  const ds = downsampleForDisplay(rawTimes, rawPnl, 1200);
 
   const trace = {
-    x: times,
-    y: pnl,
+    x: ds.times,
+    y: ds.yValues,
     name: "Cumulative net PnL",
     type: "scatter",
     mode: "lines",

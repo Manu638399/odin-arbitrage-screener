@@ -128,13 +128,14 @@ def get_pair_analysis_data(
         oracle_basis = []
 
         if not df.empty:
-            times = [str(t) for t in df.index]
-            hl_close = [float(x) for x in df["hl_close"].tolist()]
-            mt5_close = [float(x) for x in df["mt5_close"].tolist()]
-            spread = [float(x) for x in df["spread"].tolist()]
+            times = df.index.strftime("%Y-%m-%d %H:%M:%S").tolist()
+            hl_close = [round(float(x), 4) for x in df["hl_close"]]
+            mt5_close = [round(float(x), 4) for x in df["mt5_close"]]
+            spread = [round(float(x), 4) for x in df["spread"]]
             # Oracle basis: estimate or live basis
             ref_oracle_diff = analysis["metrics"]["oracle_spread"] or 0.0
-            oracle_basis = [float(s - (analysis["metrics"]["current_spread"] or 0.0) + ref_oracle_diff) for s in spread]
+            cur_spread = analysis["metrics"]["current_spread"] or 0.0
+            oracle_basis = [round(float(s - cur_spread + ref_oracle_diff), 4) for s in spread]
 
         return {
             "success": True,

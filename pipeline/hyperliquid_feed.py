@@ -24,6 +24,8 @@ class HyperliquidFeed:
         self.default_dex = default_dex
         self.timeout = timeout
         self.session = requests.Session()
+        self._candles_cache: Dict[str, Dict[str, Any]] = {}
+        self._cache_ttl_sec = 45.0
 
     def _post(self, payload: Dict[str, Any]) -> Any:
         try:
@@ -129,6 +131,13 @@ class HyperliquidFeed:
         if ":" not in coin and self.default_dex:
             coin = f"{self.default_dex}:{coin}"
 
+        cache_key = f"{coin}_{interval}_{lookback_hours}"
+        now_sec = time.time()
+        if cache_key in self._candles_cache:
+            entry = self._candles_cache[cache_key]
+            if now_sec - entry["timestamp"] < self._cache_ttl_sec:
+                return entry["df"].copy()
+
         payload = {
             "type": "candleSnapshot",
             "req": {
@@ -149,23 +158,23 @@ class HyperliquidFeed:
         if not raw_candles or not isinstance(raw_candles, list):
             return pd.DataFrame(columns=["open", "high", "low", "close", "volume"])
 
-        rows = []
-        for c in raw_candles:
-            try:
-                rows.append({
-                    "time": pd.to_datetime(c["t"], unit="ms", utc=True),
-                    "open": float(c["o"]),
-                    "high": float(c["h"]),
-                    "low": float(c["l"]),
-                    "close": float(c["c"]),
-                    "volume": float(c.get("v", 0.0))
-                })
-            except (KeyError, ValueError, TypeError):
-                continue
+        df = pd.DataFrame(raw_candles)
+        if df.empty or "t" not in df.columns:
+            return pd.DataFrame(columns=["open", "high", "low", "close", "volume"])
 
-        df = pd.DataFrame(rows)
-        if not df.empty:
-            df = df.set_index("time").sort_index()
-            # De-duplicate timestamps if any
-            df = df[~df.index.duplicated(keep="last")]
-        return df
+        df["time"] = pd.to_datetime(df["t"], unit="ms", utc=True)
+        df["open"] = pd.to_numeric(df["o"], errors="coerce")
+        df["high"] = pd.to_numeric(df["h"], errors="coerce")
+        df["low"] = pd.to_numeric(df["l"], errors="coerce")
+        df["close"] = pd.to_numeric(df["c"], errors="coerce")
+        vol_col = df["v"] if "v" in df.columns else 0.0
+        df["volume"] = pd.to_numeric(vol_col, errors="coerce").fillna(0.0)
+
+        df = df[["time", "open", "high", "low", "close", "volume"]].dropna().set_index("time").sort_index()
+        df = df[~df.index.duplicated(keep="last")]
+
+        self._candles_cache[cache_key] = {
+            "timestamp": now_sec,
+            "df": df
+        }
+        return df.copy()

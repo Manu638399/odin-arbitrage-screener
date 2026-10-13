@@ -379,27 +379,36 @@ async function loadSelectedPair() {
     document.getElementById("stat-u-2s-plus").innerText = s.u_plus_2s !== undefined ? s.u_plus_2s.toFixed(4) : "--";
     document.getElementById("stat-u-2s-minus").innerText = s.u_minus_2s !== undefined ? s.u_minus_2s.toFixed(4) : "--";
 
-    // Auto-populate Cost Estimator inputs matching pair
-    const refPx = (c.hl_close.length > 0 ? c.hl_close[c.hl_close.length - 1] : 48207);
-    document.getElementById("cost-ref-price").value = Math.round(refPx);
-    document.getElementById("cost-mt5-spread").value = Math.round(m.mt5_spread || 4);
-    await applyCostEstimation();
+    // Immediately restore reload button so user sees graphs and table without delay!
+    reloadBtn.innerHTML = origBtnContent;
+    reloadBtn.style.opacity = "1";
+    reloadBtn.disabled = false;
 
-    // Auto-populate default spread entry/exit levels if empty
-    if (s.std > 0) {
-      const buyEnt = Math.round(s.mean - (1.0 * s.std));
-      const buyEx = Math.round(s.mean);
-      const sellEnt = Math.round(s.mean + (1.0 * s.std));
-      const sellEx = Math.round(s.mean);
+    // Asynchronously populate cost estimation and backtesting in background
+    setTimeout(async () => {
+      try {
+        const refPx = (c.hl_close.length > 0 ? c.hl_close[c.hl_close.length - 1] : 48207);
+        document.getElementById("cost-ref-price").value = Math.round(refPx);
+        document.getElementById("cost-mt5-spread").value = Math.round(m.mt5_spread || 4);
+        await applyCostEstimation();
 
-      document.getElementById("bt-buy-entry").value = buyEnt;
-      document.getElementById("bt-buy-exit").value = buyEx;
-      document.getElementById("bt-sell-entry").value = sellEnt;
-      document.getElementById("bt-sell-exit").value = sellEx;
-    }
+        if (s.std > 0) {
+          const buyEnt = Math.round(s.mean - (1.0 * s.std));
+          const buyEx = Math.round(s.mean);
+          const sellEnt = Math.round(s.mean + (1.0 * s.std));
+          const sellEx = Math.round(s.mean);
 
-    // Run instant backtest
-    await runBacktest();
+          document.getElementById("bt-buy-entry").value = buyEnt;
+          document.getElementById("bt-buy-exit").value = buyEx;
+          document.getElementById("bt-sell-entry").value = sellEnt;
+          document.getElementById("bt-sell-exit").value = sellEx;
+        }
+
+        await runBacktest();
+      } catch (err) {
+        console.error("Async backtest update error:", err);
+      }
+    }, 10);
 
   } catch (err) {
     console.error("Failed to load pair analysis:", err);
